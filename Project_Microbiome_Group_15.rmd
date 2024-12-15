@@ -341,7 +341,7 @@ ggqqplot(data = combined_data_RQ1, x = "log_Sum") +
   ggtitle("QQ Plot of Ruminococcaceae Row log_Sums") 
 ```
 
-still doesn't look normally distributed. Doubled checked by conducting shapiro-wilk test again.
+still does not look normally distributed. Doubled checked by conducting shapiro-wilk test again.
 
 Shapiro-wilk test:
 ```{r}
@@ -397,7 +397,7 @@ The small effect size confirms that the observed difference between the medians 
 The large difference in group sizes (IBD = 126 and nonIBD = 54) may slightly influence the robustness of the rank-biserial correlation. However, the effect size is still small, indicating that increasing the sample size is unlikely to change the conclusion. 
 
 *Visualisation*
-Next we visualised the difference in abundance of the bacteria (sum) btween the two groups (IBD and nonIBD) 
+Next we visualised the difference in abundance of the bacteria (sum) between the two groups (IBD and nonIBD) 
 
 Boxplot:
 ```{r} 
@@ -631,7 +631,7 @@ qqline(combined_data_RQ2$Bacteriae_groups_count, col = "red")
 
 ```
 
-Again the qq plots give the same resut as the Mardia's test and the histograms.
+Again the qq plots give the same result as the Mardia's test and the histograms.
 
 Next we decided to transform the variable consent_age by log transformation to have a normal distribution. We visualised the effect of the log transformation by making a histogram.
 
@@ -881,7 +881,7 @@ Next we made a summary of our GLM to obtain p-values for these coefficients and 
 summary(glm_model)
 
 ```
-The p-values suggest significant differences between age groups 10-18 and 55-63. So next we will do a post hoc test, we will use Tukey's HSD. This test compares all group pairs, controls for family-wise error and it's straightforward to interpret and widely used for categorical variables in GLMs.
+The p-values suggest significant differences between age groups 10-18 and 55-63. So next we will do a post hoc test, we will use Tukey's HSD. This test compares all group pairs, controls for family-wise error and it is straightforward to interpret and widely used for categorical variables in GLMs.
 
 Tukey's HSD:
 ```{r}
@@ -901,5 +901,5 @@ plot(tukey_results)
 ```
 All confidence intervals cross 0, which means there are no statistically significant differences in bacterial diversity between the age groups.
 
-
+***Conclusion research question two***
 There were no statistically significant differences found in bacterial diversity between age groups or genders.
