@@ -1,0 +1,905 @@
+---
+title: "Project_IBM"
+output:
+  html_document:
+    df_print: paged
+---
+
+First we read the two datasets, genera.counts and metadata, to have a first look at our data.
+
+```{r setup, include=FALSE}
+#install.packages("tidyverse")
+library(tidyverse)
+library(knitr)
+```
+
+```{r}
+genera_counts <- read_tsv("genera.counts.tsv",show_col_types = FALSE)
+print(genera_counts)
+```
+
+```{r}
+metadata <- read_tsv("metadata.tsv",show_col_types = FALSE)
+print(metadata) 
+```
+
+The data was collected by stool samples,biopsies, blood samples, and clinical records from IBD patients and non-IBD controls.
+
+We looked at what variables might be relevant by making a summary of metadata.
+```{r}
+summary(metadata)
+```
+**Data preprocessing**
+Next we started with our data preprocessing:
+
+We checked for missing values using the summary.
+
+consent_age: 4 NAs
+Age at diagnosis: 108 NAs
+fecalcal: 161 NAs
+BMI_at_baseline:87 NAs
+Height_at_baseline:87 NAs
+Weight_at_baseline:87 NAs
+
+Next we looked at the percentage of the missing values for each study group: UC,CD and nonIBD to see if the missing values were random or not.
+```{r} 
+
+calculate_missing_summary <- function(data, group) { 
+
+  data %>% 
+
+    filter(Study.Group == group) %>% 
+    summarise(across(everything(), ~sum(is.na(.)))) %>% 
+    pivot_longer(everything(), names_to = "Variable", values_to = "Missing_Values") %>% 
+    mutate(Missing_Percentage = (Missing_Values / nrow(data)) * 100) %>% 
+    arrange(desc(Missing_Percentage)) 
+} 
+
+
+# Applied on different groups 
+
+missing_summary_nonIBD <- calculate_missing_summary(metadata, "nonIBD") 
+missing_summary_UC <- calculate_missing_summary(metadata, "UC") 
+missing_summary_CD <- calculate_missing_summary(metadata, "CD") 
+
+# Print the results 
+
+print(missing_summary_nonIBD) 
+print(missing_summary_UC) 
+print(missing_summary_CD) 
+``` 
+
+We then decided to do the following with the missing values:
+
+consent_age: deleting the 4 NAs
+Age at diagnosis: deleting this variable because there are too many NAs (108), mostly in the non-IBD group and the variable didn't seem relevant for our possible hypothesis.
+fecalcal: deleting NA's because there was an equal distribution over the 3 groups
+BMI_at_baseline: deleting NA's because there was an equal distribution over the 3 groups
+Height_at_baseline: deleting NA's because there was an equal distribution over the 3 groups
+Weight_at_baseline: deleting NA's because there was an equal distribution over the 3 groups
+smoking status: NAs were not mentioned in summary so checked ourselves and noticed too many NAs so decided to delete this variable.
+
+
+Next we checked if there were any outliers in the relevant variables. We looked at the min and max from our summary and compared it to the normal range found on the internet. We also looked at the IQR.
+
+Fecalcal (protein biomarker to assess inflammation in the intestines):
+```{r} 
+
+# Specify the variable 
+
+variable_name <- "fecalcal" 
+
+
+# Calculate Q1, Q3, and IQR 
+
+Q1 <- quantile(metadata[[variable_name]], 0.25, na.rm = TRUE) 
+Q3 <- quantile(metadata[[variable_name]], 0.75, na.rm = TRUE) 
+IQR <- Q3 - Q1 
+
+
+# Define lower and upper bounds 
+
+lower_bound <- Q1 - 1.5 * IQR 
+upper_bound <- Q3 + 1.5 * IQR 
+
+  
+# Remove outliers 
+
+filtered_data <- metadata[metadata[[variable_name]] >= lower_bound &  
+                            metadata[[variable_name]] <= upper_bound, ] 
+
+
+# Create boxplots 
+
+par(mfrow = c(1, 2)) # Set up side-by-side plots 
+
+
+# Before removing outliers 
+
+boxplot(metadata[[variable_name]], main = "Before Removing Outliers", 
+        ylab = variable_name, col = "skyblue") 
+abline(h = c(lower_bound, upper_bound), col = "red", lty = 2) # Add bounds 
+
+  
+
+# After removing outliers 
+
+boxplot(filtered_data[[variable_name]], main = "After Removing Outliers", 
+        ylab = variable_name, col = "lightgreen") 
+
+``` 
+The summary gives a max fecalcal value of 420.94 µg/mg and min of 11.81 µg/mg, which is as expected according to the internet. Fecalcal values higher than 200 µg/mg indicate inflammation and in serious cases values of 500 µg/mg or more are possible according to www.medicalnewstoday.com. 
+This and the plot shown above tells us there are no outliers for the variable fecalcal.
+
+
+BMI_at_baseline:
+```{r} 
+
+# Specify the variable 
+
+variable_name <- "BMI_at_baseline" 
+
+
+# Calculate Q1, Q3, and IQR 
+
+Q1 <- quantile(metadata[[variable_name]], 0.25, na.rm = TRUE) 
+Q3 <- quantile(metadata[[variable_name]], 0.75, na.rm = TRUE) 
+IQR <- Q3 - Q1 
+
+
+# Define lower and upper bounds 
+
+lower_bound <- Q1 - 1.5 * IQR 
+upper_bound <- Q3 + 1.5 * IQR 
+
+  
+
+# Remove outliers 
+
+filtered_data <- metadata[metadata[[variable_name]] >= lower_bound &  
+                            metadata[[variable_name]] <= upper_bound, ] 
+
+
+# Create boxplots 
+
+par(mfrow = c(1, 2)) # Set up side-by-side plots 
+
+  
+# Before removing outliers 
+
+boxplot(metadata[[variable_name]], main = "Before Removing Outliers", 
+        ylab = variable_name, col = "skyblue") 
+abline(h = c(lower_bound, upper_bound), col = "red", lty = 2) # Add bounds 
+
+
+# After removing outliers 
+
+boxplot(filtered_data[[variable_name]], main = "After Removing Outliers", 
+        ylab = variable_name, col = "lightgreen") 
+
+``` 
+
+The summary gives a min BMI value of 13.5 and max of 50.2. Even though the IQR shows a few outliers, the values may be extreme but not unlikely. We concluded there were no outliers for the BMI variable.
+
+By looking at the min value (112) and max value (193) of the variable Height_at_baseline and the min value (17.6) and max value (135) of the variable Weight_at_baseline, we concluded there are also no outliers for these variables.
+
+Next we started making a new dataset from the metadata dataset with the relevant variables only:
+
+*Making a new dataset based on metadata:*
+First we selected the relevant variables
+```{r} 
+library(dplyr) 
+
+new_dataset <- metadata %>% select(any_of(c("Sample", "Subject", "Study.Group", "Gender", "consent_age", "Age.Units", "site_sub_col", "week_num", "interval_days", "visit_num", "site_name", "Antibiotics", "race", "fecalcal", "BMI_at_baseline", "Height_at_baseline", "Weight_at_baseline"))) 
+
+head(new_dataset) 
+
+ 
+``` 
+
+Next we deleted the NAs of the variables discussed in the previous section.
+
+```{r} 
+new_dataset_noNA<- drop_na(new_dataset) 
+summary(new_dataset_noNA) 
+``` 
+
+Next we formed two research questions with their hypothesis: 
+
+**Research question 1: Is the abundancy of Ruminococcaceae bacteria related to IBD patients?**
+
+Alternative hypotheses (non-directional): The abundance of Ruminococcaceae bacteria is significantly associated with the disease state (IBD) of the patient. 
+
+Nulhypotheses (non-directional): The abundance of Ruminococcaceae bacteria is not significantly associated with the disease state (IBD) of the patient. 
+
+
+Abundancy of Ruminococcaceae bacteria is independent variable and IBD patients is dependent variable.
+
+We chose to focus on the Ruminococcaceae family of bacteria because this is the family of bacteria Faecalibacterium prausnitzii, which was mentioned in the article. The aticle mentioned a notable reduction in beneficial bacteria like Faecalibacterium prausnitzii in IBD patients.
+
+*New dataset for research question 1*
+We made a new dataset based on the genera.count dataset to use for our research question:
+
+First we selected for the Ruminococcaceae bacteria in the genera.counts dataset 
+```{r}
+# Filter columns that contain the term 'Ruminococcaceae' 
+ruminococcaceae_columns <- grep("Ruminococcaceae", colnames(genera_counts), value = TRUE) 
+ 
+# Select and group these columns into a new dataframe 
+ruminococcaceae_data <- genera_counts[, ruminococcaceae_columns, drop = FALSE] 
+ 
+# Display the first few rows of the grouped data 
+print(ruminococcaceae_data)  
+```
+
+Then we grouped the bacteria by taking the sum of all the Ruminococcaceae bacteria of each sample.
+```{r} 
+
+# Compute the row sums for the Ruminococcaceae columns 
+row_sums <- rowSums(ruminococcaceae_data) 
+ 
+# Create a new table with the row sums 
+# If rownames represent patient IDs 
+sum_table <- data.frame( 
+  Sum = row_sums 
+) 
+ 
+# Display the clear table with only the patient IDs and their sums 
+print(sum_table) 
+``` 
+
+Next we added the column 'Sample' so we could merge this new dataset to our other dataset
+```{r} 
+Sample <- genera_counts$Sample
+sum_table$Sample <- Sample
+print(head(sum_table))
+
+```
+
+Next we merged the two datasets. We only used the variables Study.Group and Sample from our previous cleaned up dataset.
+```{r} 
+# Merge the two datasets by the "Sample" column 
+combined_data_RQ1 <- merge( 
+  new_dataset_noNA[, c("Study.Group", "Sample")],  # Select only the required columns from metadata 
+
+  sum_table,                            # Include all columns from genera_counts 
+  by = "Sample"                             # Merge on the "Sample" column 
+) 
+
+# View the first few rows of the combined dataset 
+
+print(combined_data_RQ1)
+
+```
+
+Next we grouped the UC and CD patients together in 1 group: IBD patients. This way we can compare the IBD with nonIBD patients to answer our research question.
+```{r}
+# Replace 'UC' and 'CD' by 'IBD' in the column 'Study.Group'
+combined_data_RQ1$Study.Group <- ifelse(combined_data_RQ1$Study.Group %in% c("UC", "CD"), "IBD", combined_data_RQ1$Study.Group)
+
+# Check the results
+table(combined_data_RQ1$Study.Group)
+
+
+print(combined_data_RQ1)
+
+
+```
+
+Now our dataset is ready for our research question.
+
+*Checking normality*
+
+First we checked if there is a normal distribution. For this we used QQ plots and the Shapiro-wilk test.
+
+QQ plot:
+```{r} 
+
+install.packages("ggpubr")  
+library(ggpubr) 
+ 
+# Create the QQ plot using the Sum column from sum_table 
+ggqqplot(data = combined_data_RQ1, x = "Sum") + 
+  ggtitle("QQ Plot of Ruminococcaceae Row Sums")  
+```  
+
+The qq plot shows there is no normal distribution.
+
+Shapiro-wilk test:
+```{r}
+shapiro.test(combined_data_RQ1$Sum[combined_data_RQ1$Study.Group == "IBD"])
+shapiro.test(combined_data_RQ1$Sum[combined_data_RQ1$Study.Group == "nonIBD"])
+
+```
+
+IBD group: w-value is far from 1, so our data strongly deviates from normality. P-value is extremely small, much smaller than significance level 0.05, so reject null hypothesis that the data is normally distributed.
+
+nonIBD group: w-value is closer to 1 than IBD group but still indicates some deviation from normality. P-value is smaller than 0.05, so again reject null hypothesis that the data is normally distributed.
+
+We could conclude that the data is not normally distributed. 
+
+
+Next we did a log transformation to normalise the data:
+
+Log transformation:
+```{r} 
+combined_data_RQ1 <- combined_data_RQ1 %>% 
+
+  mutate(log_Sum = log(Sum))
+```
+
+We made a qq plot to visualise our transformation:
+
+qq plot:
+```{r}
+
+install.packages("ggpubr")  
+library(ggpubr) 
+ 
+# Create the QQ plot using the Sum column from sum_table 
+ggqqplot(data = combined_data_RQ1, x = "log_Sum") + 
+  ggtitle("QQ Plot of Ruminococcaceae Row log_Sums") 
+```
+
+still doesn't look normally distributed. Doubled checked by conducting shapiro-wilk test again.
+
+Shapiro-wilk test:
+```{r}
+shapiro.test(combined_data_RQ1$log_Sum[combined_data_RQ1$Study.Group == "IBD"])
+shapiro.test(combined_data_RQ1$log_Sum[combined_data_RQ1$Study.Group == "nonIBD"])
+```
+
+The results in this new output show that even after applying a log transformation (log_Sum), the data is still not normally distributed for both groups.  
+
+*Conducting statistical tests*
+Because our data is not normally distributed we decided to do a Mann-Whitney U-Test. 
+
+Mann-Whitney U-Test:
+```{r}
+# Mann-Whitney U-test between the new groups
+wilcox.test(Sum ~ Study.Group, data = combined_data_RQ1, alternative = "two.sided")
+
+```
+
+p-value is slightly greater than α = 0.05, so unable to reject null hypothesis at the 5% significance level. This means that there is not enough evidence to conclude that the medians of sum of bacteria for IBD and nonIBD are significantly different. But p-value is close to 0.05 suggesting a borderline result. This could mean that there might still be a subtle difference between the groups that a larger sample size might uncover.   
+
+Non-parametric tests like the Mann-Whitney U-test are less sensitive than parametric tests when sample sizes are small or when there are subtle differences between groups.
+
+So we decided to do a permutation test, to determine if the observed difference is significant.
+
+Permutation test:
+```{r}
+combined_data_RQ1$Study.Group <- as.factor(combined_data_RQ1$Study.Group) 
+
+library(coin)
+perm_test <- oneway_test(Sum ~ Study.Group, data = combined_data_RQ1, distribution = "approximate")
+print(perm_test)
+```
+p-value suggests that there is no statistically significant difference in the central tendency of Sum between the IBD and nonIBD groups, based on this permutation test. The result align with the borderline significance observed in the Mann-Whitney U-test. This reinforces the idea that the groups are likely not substantially different in central tendency. 
+
+Next we also calculated the effect size, to understand the magnitude of the difference.
+
+For Mann-Whitney you can use the rank-biserial correlation:
+
+Effect size:
+```{r}
+install.packages("coin")
+library(rstatix)
+combined_data_RQ1 %>%
+  wilcox_effsize(Sum ~ Study.Group)
+
+```
+
+0.1 is a small effect size, 0.3 is a medium effect size. Our effect size is 0.15 which is a rather small effect size.
+
+The small effect size confirms that the observed difference between the medians of the Sum variable for the IBD and nonIBD groups is minor and likely not clinically or practically significant. This aligns with the results of the Mann-Whitney U-test and the permutation test, which also suggested that any difference between the groups is subtle or negligible. 
+
+The large difference in group sizes (IBD = 126 and nonIBD = 54) may slightly influence the robustness of the rank-biserial correlation. However, the effect size is still small, indicating that increasing the sample size is unlikely to change the conclusion. 
+
+*Visualisation*
+Next we visualised the difference in abundance of the bacteria (sum) btween the two groups (IBD and nonIBD) 
+
+Boxplot:
+```{r} 
+
+library(ggplot2) 
+library(dplyr) # Ensure dplyr is loaded for %>% 
+ 
+combined_data_RQ1 %>% 
+  ggplot(aes(x = Study.Group, y = Sum, color = Study.Group)) + 
+  geom_boxplot() + 
+  theme_classic() 
+``` 
+The boxplot represents the sum of bacterial counts for two groups: IBD and nonIBD. The median (horizontal line within each box) for both groups appears to be relatively similar, although the IBD group has slightly lower counts. The interquartile range (IQR) - represented by the height of the boxes - is similar for both groups, but the IBD group has a slightly larger spread. The IBD group shows a notable number of high outliers (red points) with values exceeding 4 million. In comparison, the nonIBD group has fewer extreme outliers, though there are some visible. Overall, the boxplot suggests similar distributions between the IBD and nonIBD groups, with some extreme counts present in both. 
+
+The visualization suggests that the distributions of bacterial counts between IBD and nonIBD groups are similar overall. However, the IBD group has more high-value outliers, reflecting greater variability among some samples. The medians are comparable, indicating no large differences in central tendency. 
+
+Violin plot with boxplot overlay:
+```{r} 
+
+ggplot(combined_data_RQ1, aes(x = Study.Group, y = Sum, fill = Study.Group)) + 
+  geom_violin(trim = FALSE, alpha = 0.5) +  # Violin plot with transparency 
+  geom_boxplot(width = 0.1, position = position_dodge(width = 0.9)) +  # Boxplot overlay 
+  theme_minimal() + 
+  labs(title = "Violin Plot with Boxplot Overlay", x = "Study Group", y = "Sum") 
+``` 
+
+The distribution of Sum values differs noticeably between the IBD and nonIBD groups. The IBD group displays greater variability, with a wider range extending up to 8 million, and its density is concentrated near lower values (~2 million). Long tails suggest the presence of outliers or a small subset with much higher values. In contrast, the nonIBD group shows a more symmetric and compact distribution, with values clustered near the center and a lower maximum.
+
+The IBD group’s larger range and longer upper whiskers in the boxplot indicate greater dispersion, while the nonIBD group exhibits a tighter, more consistent range. The median Sum value for the nonIBD group is slightly higher, aligning with its more symmetric and centered distribution. The interquartile range (IQR) is narrower for the IBD group, showing less variability in central values, while the nonIBD group has a wider IQR, reflecting more spread in the middle 50% of its data.
+
+Outliers are more prevalent in the IBD group, with extreme values reaching up to 8 million, while the nonIBD group has fewer and less extreme outliers. The violin plots confirm these observations: the IBD group has a dense lower range with extended tails, whereas the nonIBD group has a symmetric peak near the center.
+
+Violin plot with median points:
+```{r} 
+
+ggplot(combined_data_RQ1, aes(x = Study.Group, y = Sum, fill = Study.Group)) + 
+  geom_violin(trim = FALSE) + 
+  stat_summary(fun = median, geom = "point", size = 2, color = "black") +  # Add median points 
+  theme_minimal() + 
+  labs(title = "Violin Plot with Median Points", x = "Study Group", y = "Sum") 
+```  
+The violin plot provides additional insights by showing the distribution density of bacterial counts in the two groups. Both groups have a broad distribution with visible "tails" extending towards higher counts. The IBD group shows slightly higher variability in the upper tail. Black dots indicate the median bacterial counts. As in the boxplot, the medians for IBD and nonIBD groups appear close, with a slight difference favoring the nonIBD group. The nonIBD group has a denser distribution around the lower to mid-range counts compared to the IBD group, which shows a slightly flatter density. 
+
+The visualization suggests that the distributions of bacterial counts between IBD and nonIBD groups are similar overall. The violin plot highlights subtle differences in distribution density, with the nonIBD group appearing more concentrated in mid-range counts, while the IBD group displays more dispersed counts. 
+
+*Conclusion research question 1*
+While the IBD group exhibits higher variability and extreme outliers, the differences in central tendencies and overall distributions between the IBD and nonIBD groups are minor. Statistical tests do not support a significant difference in the Sum variable between these groups.
+
+
+**Research question 2: "Is there an association between bacterial diversity and gender, consent age, and race, independent of IBD status?" **
+
+Alternative hypotheses (non-directional): There is a significant association between bacterial diversity and gender, consent age, and race, independent of IBD status
+
+Nulhypotheses (non-directional): There is no significant association between bacterial diversity and gender, consent age, and race, independent of IBD status
+
+
+Bacterial diversity is dependent variable and gender, age and race are independent variables.
+
+*New dataset for research question 2*
+First we created a dataset without the variable "Sample" so we can sum up all the different types of bacteriae that are present for each sample. Next, we added back the variable "Sample".  
+```{r} 
+
+# Exclude the "Sample" column from the genera_counts dataset 
+
+genera_counts_no_Sample <- genera_counts[, !colnames(genera_counts) %in% "Sample"] 
+
+# Ensure all variables are numeric (in case any columns are factors or characters) 
+
+genera_counts_no_Sample[] <- lapply(genera_counts_no_Sample, as.numeric) 
+
+# Add a new column to count non-zero variables per row 
+
+genera_non_zero_count <- apply(genera_counts_no_Sample, 1, function(x) sum(x != 0, na.rm = TRUE)) 
+
+# Create a clean table with Sample and the non-zero counts 
+
+genera_counts_def <- data.frame( 
+  Sample = genera_counts$Sample,  # Include the "Sample" column 
+  Bacteriae_groups_count = genera_non_zero_count  # Add the calculated non-zero counts 
+) 
+
+# View the first few rows of the clean table 
+
+show(genera_counts_def) 
+
+``` 
+
+Next we created a new dataset for our research question 2. This dataset is a combination of the variables consent_age, gender and race from our cleaned up metadata dataset and the bacterial count we made in the previous section.
+
+Consent_age and bacteriae_groups_count are continious variables. 
+Gender and race are categorical variables. Race has 5 categories: "White", "Other", "Black or African American", "More than one race", "American Indian or Alaska Native" and gender has two: "Female" and "Male".
+
+```{r} 
+
+# Merge the two datasets by the "Sample" column 
+
+combined_data_RQ2 <- merge( 
+
+  new_dataset_noNA[, c("Sample", "consent_age", "Gender", "race")],  # Select only the required columns from metadata 
+
+  genera_counts_def,                            # Include all columns from genera_counts 
+
+  by = "Sample"                             # Merge on the "Sample" column 
+
+) 
+
+# View the first few rows of the combined dataset 
+
+head(combined_data_RQ2) 
+
+``` 
+
+Next we made a summary of our new dataset 'combined_data_RQ2'to have a first look at the variables.
+
+Summary:
+```{r} 
+
+summary(combined_data_RQ2) 
+
+``` 
+*Checking normality*
+
+First we checked if there is a normal distribution to know which statistical tests we can do. We had to check if our continious variables (Consent_age and bacteriae_groups_count) were normally distributed. For this we used the Shapiro-wilk test, Mardia's test, histograms and QQ plots.
+
+Shapiro-wilk test:
+```{r}
+shapiro.test(combined_data_RQ2$Bacteriae_groups_count)
+shapiro.test(combined_data_RQ2$consent_age)
+```
+According to this test:
+The p-value of Bacteriae_groups_count is greater than 0.05 so it suggests that the data does not significantly differ from a normal distribution.
+The p-value of consent_age is less than 0.05 so it suggests that the data significantly differs from a normal distribution.
+
+Mardia's test:
+```{r} 
+install.packages("MVN")  # For multivariate normality tests
+install.packages("dplyr")  # For data manipulation
+library(MVN)
+library(dplyr)
+
+# Select only continuous variables
+continuous_data <- combined_data_RQ2[, c("consent_age", "Bacteriae_groups_count")]
+
+# Perform Mardia's Test for multivariate normality
+result <- mvn(data = continuous_data, mvnTest = "mardia")
+
+# Print the result
+print(result)
+
+
+```
+The Mardia's test assesses skewness and kurtosis to evaluate multivariate normality.
+
+Multivariate Normality: The data does not meet multivariate normality due to skewness, as shown by Mardia's test. 
+
+Univariate Normality: consent_age does not follow a normal distribution. 
+The Anderson-Darling Test for consent_age gives the following results: 
+Test statistic: 11.2456 
+p-value: < 0.001 (very small, less than 0.05). 
+Normality: NO. 
+Bacteriae_groups_count does follow a normal distribution. 
+The Anderson-Darling Test gives the following results: 
+Test statistic: 0.5372 
+p-value: 0.1666 (greater than 0.05). 
+Normality: YES. 
+
+Skewness: 
+consent_age: 1.12 (positive skew, indicating a longer tail on the right side). 
+Bacteriae_groups_count: 0.05 (close to 0, indicating near-symmetry). 
+
+Kurtosis: 
+consent_age: 0.19 (close to 0, suggesting near-normal kurtosis). 
+Bacteriae_groups_count: 0.51 (slightly elevated kurtosis, but still reasonable).
+
+Next we had a look at the histograms to visualize the distribution.
+
+Histograms of the continuous variables:
+```{r} 
+
+# Histogram for age 
+
+combined_data_RQ2 %>% 
+  ggplot(aes(x = consent_age, fill = race)) + 
+  geom_histogram(alpha = 0.4, position = "dodge", bins = 30) +  
+  theme_classic() + 
+  scale_fill_manual(values = c( 
+    "White" = "blue",  
+    "American Indian or Alaska Native" = "yellow",  
+    "More than one race" = "green",  
+    "Black or African American" = "black",  
+    "Other" = "pink" 
+  )) + 
+
+  ggtitle("Histogram of Age by Race") + 
+  xlab("Age") + 
+  ylab("Count") + 
+  theme(legend.title = element_blank()) 
+
+# Histogram for Bacteriae_groups_count 
+
+combined_data_RQ2 %>% 
+  ggplot(aes(x = Bacteriae_groups_count, fill = race)) + 
+  geom_histogram(alpha = 0.4, position = "dodge", bins = 30) +  
+  theme_classic() + 
+  scale_fill_manual(values = c( 
+    "White" = "blue",  
+    "American Indian or Alaska Native" = "yellow",  
+    "More than one race" = "green",  
+    "Black or African American" = "black",  
+    "Other" = "pink" 
+  )) + 
+
+  ggtitle("Histogram of Bacterial Group Count by Race") + 
+  xlab("Bacterial Group Count") + 
+  ylab("Count") + 
+  theme(legend.title = element_blank()) 
+
+```  
+
+The histograms give the same result as the Mardia's test: Bacteriae_groups_count is normally distributed but consent_age is not.
+
+QQ plots of the continious variables:
+```{r}
+# Q-Q Plot for consent_age
+qqnorm(combined_data_RQ2$consent_age, main = "Q-Q Plot for consent_age")
+qqline(combined_data_RQ2$consent_age, col = "red")
+
+# Q-Q Plot for Bacteriae_groups_count
+qqnorm(combined_data_RQ2$Bacteriae_groups_count, main = "Q-Q Plot for Bacteriae_groups_count")
+qqline(combined_data_RQ2$Bacteriae_groups_count, col = "red")
+
+```
+
+Again the qq plots give the same resut as the Mardia's test and the histograms.
+
+Next we decided to transform the variable consent_age by log transformation to have a normal distribution. We visualised the effect of the log transformation by making a histogram.
+
+Log transformation of consent_age and histogram:
+```{r} 
+
+# Add a new column with the logarithmically transformed age variable 
+
+combined_data_RQ2 <- combined_data_RQ2 %>% 
+  mutate(log_consent_age = log(consent_age))
+
+# Plot the histogram of the log-transformed age variable 
+
+combined_data_RQ2 %>% 
+  ggplot(aes(x = log_consent_age)) + 
+  geom_histogram(bins = 30, fill = "blue", color = "black", alpha = 0.7) + 
+  theme_classic() + 
+  ggtitle("Histogram of Log-Transformed Age") + 
+  xlab("Log-Transformed Age") + 
+  ylab("Count")+ 
+  theme(legend.title = element_blank()) 
+
+```
+
+After performing the log transformation our variable consent_age is still not normally distributed, so we decided to make our variable categorical and split up our variable (not log transformed) into 5 age groups.
+
+```{r} 
+
+# Define custom breakpoints for the age groups 
+
+breakpoints <- c(0, 18, 36, 64, 72, 90)  # Custom breakpoints for age ranges 
+
+# Split 'age' into custom groups with range labels 
+
+combined_data_RQ2$age_group <- cut(combined_data_RQ2$consent_age,  
+
+                                   breaks = breakpoints,  
+
+                                   labels = c("0-18", "19-36", "37-64", "65-72", "73-90"),  
+                                   include.lowest = TRUE)
+table(combined_data_RQ2$age_group)
+```
+We  see that the groups are not equal in size, as there are more young people than old.
+
+We also visualized the spread by making a bar plot.
+```{r}
+# Create a bar plot to show the count of individuals in each age group
+ggplot(combined_data_RQ2, aes(x = age_group)) + 
+  geom_bar(fill = "skyblue", color = "black", alpha = 0.7) +  # Customizes the bars
+  labs(title = "Count of Individuals in Each Age Group",
+       x = "Age Groups", 
+       y = "Count of Individuals") +
+  theme_classic()  # Clean theme
+
+
+
+```
+The bar plot only shows 4 groups instead of 5 because our fourth group (65-72) does not contain any people so it was automatically excluded from the plot.
+
+So we decided to make the group sizes smaller to see if this would help create a more even spread. We now created 10 groups instead of 5.
+
+```{r}
+# Define custom breakpoints for the age groups
+breakpoints <- c(0, 9, 18, 27, 36, 45, 54, 63, 72, 81, 90)  # Custom breakpoints for age ranges
+
+
+# Split 'age' into custom groups with range labels
+combined_data_RQ2$age_group <- cut(combined_data_RQ2$consent_age, 
+                                   breaks = breakpoints, 
+                                   labels = c("0-9", "10-18", "19-27", "28-36", "37-45","46-54","55-63","64-72","73-81","82-90"), 
+                                   include.lowest = TRUE)
+table(combined_data_RQ2$age_group)
+
+# Create a bar plot to show the count of individuals in each age group
+ggplot(combined_data_RQ2, aes(x = age_group)) + 
+  geom_bar(fill = "skyblue", color = "black", alpha = 0.7) +  # Customizes the bars
+  labs(title = "Count of Individuals in Each Age Group",
+       x = "Age Groups", 
+       y = "Count of Individuals") +
+  theme_classic()  # Clean theme
+
+
+
+```
+
+We see that making smaller group sizes creates an even more unequal spread. This could lead to issues in statistical analysis.
+
+So we decided to continue with the 5 groups instead of the 10 groups. There is a more balanced distribution of individuals in each group. It also groups the age ranges in a way that is still meaningful (based on general age bands such as childhood, young adulthood, middle adulthood, and older adulthood).
+
+
+Next we visualized the distribution of our other categorical variables (Gender, race) by using a bar chart.
+
+Bar charts:  
+```{r} 
+# Bar chart for Gender 
+
+combined_data_RQ2 %>% 
+  ggplot(aes(x = Gender, fill = Gender)) + 
+  geom_bar(alpha = 0.4) + 
+  theme_classic() + 
+  scale_fill_manual(values = c( 
+    "Male" = "green",  
+    "Female" = "yellow",  
+    "Other" = "purple" 
+  )) + 
+  ggtitle("Bar Chart of Gender Distribution") + 
+  xlab("Gender") + 
+  ylab("Count") + 
+  theme(legend.position = "none") 
+
+
+# Bar chart for Race 
+
+combined_data_RQ2 %>% 
+  ggplot(aes(x = race, fill = race)) + 
+  geom_bar(alpha = 0.8) + 
+  theme_classic() + 
+  scale_fill_manual(values = c( 
+    "White" = "blue",  
+    "American Indian or Alaska Native" = "yellow",  
+    "More than one race" = "green",  
+    "Black or African American" = "black",  
+    "Other" = "pink" 
+
+  )) + 
+
+  ggtitle("Bar Chart of Race Distribution") + 
+  xlab("Race") + 
+  ylab("Count") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels
+        legend.position = "none") 
+
+``` 
+
+We can see an equal distribution of the variable "gender", but there is no equal distribution of the variable "race". Approximately 90% of the study population is white, which creates a big bias. Meaningful statistical comparisons become nearly impossible, so we decided to discard the variable "race" and continue with the other variables.
+
+This changes our original research question to the following:
+
+*New research question 2 with hypothesis*
+
+Research question 2: "Is there an association between bacterial diversity and gender and consent age, independent of IBD status?"
+
+Alternative hypotheses (non-directional): There is a significant association between bacterial diversity and gender and consent age independent of IBD status
+
+Nulhypotheses (non-directional):
+There is no significant association between bacterial diversity and gender and consent age independent of IBD status
+
+Next we have to do statistical tests to answer our research question.
+
+Our data is multivariate with 2 categorical variables: consent_age and gender, and 1 continuous variable: Bacteriae_groups_count. 
+Our data is normally distributed.
+
+We made a correlation plot to have a first look at our data:
+
+Correlation plot:
+```{r}
+library(GGally)
+
+combined_data_RQ2 %>% select(-Sample,-log_consent_age, -consent_age) %>%
+ggpairs(title="correlogram with ggpairs()") +
+  theme_classic()
+```
+***interpretation of correlation plot***
+
+We also created an interaction plot to observe whether significant effects could already be identified.
+
+Interaction plot:
+```{r}
+library(ggplot2)
+ggplot(combined_data_RQ2, aes(x = age_group, y = Bacteriae_groups_count, fill = Gender)) +
+  stat_summary(fun = mean, geom = "bar", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Bacterial Diversity by Age Group and Gender",
+       x = "Age Group", y = "Bacterial Diversity")
+
+```
+The diversity of bacteria seems to increase with age, especially for females. Females additionaly show a very high diversity of bacteria in the age group of 55 to 63 years old.
+
+Next we have to test for equality of variances to know which statistical tests we can do.
+
+Levene’s test:
+```{r}
+# Levene's Test for equality of variances
+library(car)
+
+
+# Run Levene's Test with bacterial count as the continuous variable and age and gender as categorical
+
+leveneTest(Bacteriae_groups_count ~ Gender, data = combined_data_RQ2)
+
+leveneTest(Bacteriae_groups_count ~ age_group, data = combined_data_RQ2)
+
+leveneTest(Bacteriae_groups_count ~ age_group * Gender, data = combined_data_RQ2)
+
+```
+All tests show p-values greater than 0.05, which means you fail to reject the null hypothesis in each case.The null hypothesis of Levene's test is that the variances across the groups are equal.
+
+So we can say there is no significant evidence that the variances of the bacterial count differ between the age and gender groups in your dataset.
+
+
+*Conducting statistical tests*
+
+we decided to perform a two-way ANOVA. This way we can evaluate the main effect of age group,the main effect of gender and the interaction effect between age group and gender.
+
+We have checked normal distribution of the residuals and homogeneity of variance. Both assumptions were met.
+
+Analysis of Variance (ANOVA):
+```{r}
+anova_model <- aov(Bacteriae_groups_count ~ age_group * Gender, data = combined_data_RQ2)
+summary(anova_model)
+
+```
+
+The two-way ANOVA shows significant  effect for the variable "age_group". Therefore we decided to perform a post-hoc test to determine which specific groups differ from each other. For this we used Tukey's HSD.
+
+
+```{r}
+# Tukey's HSD post hoc test for pairwise comparisons of Age Group
+TukeyHSD(anova_model, "age_group")
+
+```
+
+We do not find any significant differences, even though our initial ANOVA indicated a significant effect for age group. This can happen when the sample sizes in the groups are unbalanced, reducing statistical power. Since we already looked at other sample sizes to have more balanced groups we decided to do another test, a Generalized Linear Model (GLM). This test handles unbalanced group sizes, While ANOVA is somewhat robust to unequal group sizes.
+
+As mentioned before, We have checked normal distribution of the residuals and homogeneity of variance. Both assumptions were met. So next we can make a Generalized Linear Model (GLM).
+
+Generalized Linear Model (GLM):
+```{r}
+glm_model <- glm(Bacteriae_groups_count ~ age_group + Gender + age_group:Gender, 
+                 data = combined_data_RQ2, 
+                 family = gaussian(link = "identity"))
+
+print(glm_model)
+
+```
+We made a residual plot to have a second look at the homoscedasticity. We checked the residuals to ensure they have consistent variance across groups.
+
+```{r}
+plot(glm_model, which = 3)  # Scale-location plot for homoscedasticity
+
+```
+The residuals are more or less evenly spread around the red line, which means there is homoscedasticity.
+
+Next we made a summary of our GLM to obtain p-values for these coefficients and look at their significance. 
+
+```{r}
+summary(glm_model)
+
+```
+The p-values suggest significant differences between age groups 10-18 and 55-63. So next we will do a post hoc test, we will use Tukey's HSD. This test compares all group pairs, controls for family-wise error and it's straightforward to interpret and widely used for categorical variables in GLMs.
+
+Tukey's HSD:
+```{r}
+install.packages("multcomp")
+library(multcomp)
+
+tukey_results <- glht(glm_model, linfct = mcp(age_group = "Tukey"))
+summary(tukey_results)
+
+```
+The Tukey HSD shows no statistically significant differences in bacterial diversity between the age groups.
+
+We also made a plot to visualize the results. This provides a comparison of the means for the categorical variable age_group.
+
+```{r}
+plot(tukey_results)
+```
+All confidence intervals cross 0, which means there are no statistically significant differences in bacterial diversity between the age groups.
+
+
+There were no statistically significant differences found in bacterial diversity between age groups or genders.
