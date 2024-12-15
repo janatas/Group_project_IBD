@@ -341,7 +341,7 @@ ggqqplot(data = combined_data_RQ1, x = "log_Sum") +
   ggtitle("QQ Plot of Ruminococcaceae Row log_Sums") 
 ```
 
-still does not look normally distributed. Doubled checked by conducting shapiro-wilk test again.
+still does not look normally distributed. Double checked by conducting shapiro-wilk test again.
 
 Shapiro-wilk test:
 ```{r}
@@ -794,7 +794,9 @@ combined_data_RQ2 %>% select(-Sample,-log_consent_age, -consent_age) %>%
 ggpairs(title="correlogram with ggpairs()") +
   theme_classic()
 ```
-***interpretation of correlation plot***
+Gender vs. Bacteriae_groups_count: Boxplots suggest that bacterial counts are similar across genders, with some variability.
+Race vs. Bacteriae_groups_count: Boxplots indicate differences in bacterial counts across racial groups.
+Age_group vs. Bacteriae_groups_count: Boxplots suggest that bacterial counts vary across age groups, with some age groups showing higher variability.
 
 We also created an interaction plot to observe whether significant effects could already be identified.
 
