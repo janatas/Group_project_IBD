@@ -903,5 +903,5 @@ plot(tukey_results)
 ```
 All confidence intervals cross 0, which means there are no statistically significant differences in bacterial diversity between the age groups.
 
-***Conclusion research question two***
+***Conclusion research question 2***
 There were no statistically significant differences found in bacterial diversity between age groups or genders.
