@@ -794,9 +794,9 @@ combined_data_RQ2 %>% select(-Sample,-log_consent_age, -consent_age) %>%
 ggpairs(title="correlogram with ggpairs()") +
   theme_classic()
 ```
-Gender vs. Bacteriae_groups_count: Boxplots suggest that bacterial counts are similar across genders, with some variability.
-Race vs. Bacteriae_groups_count: Boxplots indicate differences in bacterial counts across racial groups.
-Age_group vs. Bacteriae_groups_count: Boxplots suggest that bacterial counts vary across age groups, with some age groups showing higher variability.
+Based on the plot we could see that bacterial counts are similar across genders, with some variability. 
+The boxplot also indicates differences in bacterial counts across racial groups.
+The plot additonaly showes that bacterial counts vary across age groups, with some age groups showing higher variability.
 
 We also created an interaction plot to observe whether significant effects could already be identified.
 
